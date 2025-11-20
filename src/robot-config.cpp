@@ -20,6 +20,10 @@ motor_group LeftBack(LeftBackA, LeftBackB);
 motor_group RightBack(RightBackA, RightBackB);
 motor_group DriveL(LeftFront, LeftBackA, LeftBackB);
 motor_group DriveR(RightFront, RightBackA, RightBackB);
+// define pneumatics ports
+vex::digital_out solenoidA(Brain.ThreeWirePort.A);
+vex::digital_out solenoidB(Brain.ThreeWirePort.B);
+
 
 // define intake motor 1
 motor intakeMotor1 = motor(PORT9, ratio6_1, true);

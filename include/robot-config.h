@@ -16,6 +16,9 @@ extern motor_group LeftBack;
 extern motor_group RightBack;
 extern motor_group DriveL;
 extern motor_group DriveR;
+// pnuematics 
+extern digital_out solenoidA;
+extern digital_out solenoidB;
 
 // intake motors
 extern motor intakeMotor1;

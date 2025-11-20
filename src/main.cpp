@@ -4,14 +4,12 @@ using namespace vex;
 competition Competition;
 
 // state variables
-bool intake1Running = false;
-bool intake1Forward = true;
+bool intakeAllRunning = false;
+bool intakeAllForward = true;
+bool solenoidAActive = false;
+bool solenoidBActive = false;
 
-bool intake2Running = false;
-bool intake2Forward = true;
 
-bool stage1Running = false;
-bool stage1Forward = true;
 
 // chassis configuration
 Drive chassis(
@@ -191,94 +189,63 @@ void autonomous(void) {
 
 void usercontrol(void) {
   while (1) {
-    // ---- Intake 1 (L1/L2 toggle) ----
+    // --- Intake toggle (L1 and L2 control ALL intakes at once) ---
     static bool prevL1 = false, prevL2 = false;
     bool currL1 = Controller.ButtonL1.pressing();
     bool currL2 = Controller.ButtonL2.pressing();
 
     if (currL1 && !prevL1) { // L1 pressed (forward)
-      if (!intake1Running || !intake1Forward) {
-        intake1Running = true;
-        intake1Forward = true;
+      if (!intakeAllRunning || !intakeAllForward) {
+        intakeAllRunning = true;
+        intakeAllForward = true;
       } else {
-        intake1Running = false;
+        intakeAllRunning = false;
       }
     }
     if (currL2 && !prevL2) { // L2 pressed (reverse)
-      if (!intake1Running || intake1Forward) {
-        intake1Running = true;
-        intake1Forward = false;
+      if (!intakeAllRunning || intakeAllForward) {
+        intakeAllRunning = true;
+        intakeAllForward = false;
       } else {
-        intake1Running = false;
+        intakeAllRunning = false;
       }
     }
     prevL1 = currL1;
     prevL2 = currL2;
-    if (intake1Running) {
-      intakeMotor1.spin(intake1Forward ? vex::directionType::fwd : vex::directionType::rev, 100, vex::velocityUnits::pct);
+
+    if (intakeAllRunning) {
+      directionType dir = intakeAllForward ? vex::directionType::fwd : vex::directionType::rev;
+      intakeMotor1.spin(dir, 100, vex::velocityUnits::pct);
+      intakeMotor2.spin(dir, 100, vex::velocityUnits::pct);
+      stage1.spin(dir, 100, vex::velocityUnits::pct);
     } else {
       intakeMotor1.stop(vex::brakeType::coast);
+      intakeMotor2.stop(vex::brakeType::coast);
+      stage1.stop(vex::brakeType::coast);
     }
 
-    // ---- Intake 2 (R1/R2 toggle) ----
+    // --- Pneumatics toggle (R1 and R2) ---
     static bool prevR1 = false, prevR2 = false;
     bool currR1 = Controller.ButtonR1.pressing();
     bool currR2 = Controller.ButtonR2.pressing();
 
-    if (currR1 && !prevR1) { // R1 pressed (forward)
-      if (!intake2Running || !intake2Forward) {
-        intake2Running = true;
-        intake2Forward = true;
-      } else {
-        intake2Running = false;
-      }
-    }
-    if (currR2 && !prevR2) { // R2 pressed (reverse)
-      if (!intake2Running || intake2Forward) {
-        intake2Running = true;
-        intake2Forward = false;
-      } else {
-        intake2Running = false;
-      }
+    // Toggle Solenoid A (R1)
+    if (currR1 && !prevR1) {
+      solenoidAActive = !solenoidAActive;
     }
     prevR1 = currR1;
+
+    // Toggle Solenoid B (R2)
+    if (currR2 && !prevR2) {
+      solenoidBActive = !solenoidBActive;
+    }
     prevR2 = currR2;
-    if (intake2Running) {
-      intakeMotor2.spin(intake2Forward ? vex::directionType::fwd : vex::directionType::rev, 100, vex::velocityUnits::pct);
-    } else {
-      intakeMotor2.stop(vex::brakeType::coast);
-    }
 
-    // ---- Stage 1 (UP/DOWN toggle) ----
-    static bool prevUp = false, prevDown = false;
-    bool currUp = Controller.ButtonUp.pressing();
-    bool currDown = Controller.ButtonDown.pressing();
+    // Set pneumatic states
+    solenoidA.set(solenoidAActive);
+    solenoidB.set(solenoidBActive);
 
-    if (currDown && !prevDown) { // Down pressed (forward)
-      if (!stage1Running || !stage1Forward) {
-        stage1Running = true;
-        stage1Forward = true;
-      } else {
-        stage1Running = false;
-      }
-    }
-    if (currUp && !prevUp) { // Up pressed (reverse)
-      if (!stage1Running || stage1Forward) {
-        stage1Running = true;
-        stage1Forward = false;
-      } else {
-        stage1Running = false;
-      }
-    }
-    prevUp = currUp;
-    prevDown = currDown;
-    if (stage1Running) {
-      stage1.spin(stage1Forward ? vex::directionType::fwd : vex::directionType::rev, 100, vex::velocityUnits::pct);
-    } else {
-      stage1.stop(vex::brakeType::coast);
-    }
-
-    // --- Chassis drive code ---
+    // --- Chassis drive code (holonomic or your preferred method) ---
     chassis.control_holonomic();
 
     wait(20, msec); // Prevent wasted resources
