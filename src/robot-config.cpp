@@ -11,19 +11,15 @@ controller Controller;
 // defining drivetrain motors
 motor LeftFront = motor(PORT2, ratio6_1, true);
 motor RightFront = motor(PORT15, ratio6_1, false);
-motor LeftBackA = motor(PORT7, ratio6_1, true);
-motor LeftBackB = motor(PORT14, ratio6_1, false);
-motor RightBackA = motor(PORT21, ratio6_1, false);
-motor RightBackB = motor(PORT10, ratio6_1, false);
+motor LeftBack = motor(PORT7, ratio6_1, true);
+motor RightBack = motor(PORT21, ratio6_1, false);
 // drivetrain motor groups
-motor_group LeftBack(LeftBackA, LeftBackB);
-motor_group RightBack(RightBackA, RightBackB);
-motor_group DriveL(LeftFront, LeftBackA, LeftBackB);
-motor_group DriveR(RightFront, RightBackA, RightBackB);
+motor_group DriveL(LeftFront, LeftBack);
+motor_group DriveR(RightFront, RightBack);
 // define pneumatics ports
 vex::digital_out solenoidA(Brain.ThreeWirePort.A);
 vex::digital_out solenoidB(Brain.ThreeWirePort.B);
-
+vex::digital_out solenoidC(Brain.ThreeWirePort.C);
 
 // define intake motor 1
 motor intakeMotor1 = motor(PORT9, ratio6_1, true);
@@ -35,7 +31,9 @@ motor intakeMotor4 = motor(PORT11, ratio6_1, false);
 // combine stage 1 intake motors into a motor group
 motor_group stage1(intakeMotor3, intakeMotor4);
 
-
+// define distance sensors
+distance leftDist(PORT3);
+distance rightDist(PORT20);
 
 
 //The motor constructor takes motors as (port, ratio, reversed), so for example

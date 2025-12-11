@@ -8,7 +8,7 @@ bool intakeAllRunning = false;
 bool intakeAllForward = true;
 bool solenoidAActive = false;
 bool solenoidBActive = false;
-
+bool solenoidCActive = false;
 
 
 // chassis configuration
@@ -32,13 +32,13 @@ HOLONOMIC_TWO_ROTATION, // select holonomic drive with two rotational sensors (2
 //You will input whatever motor names you chose when you configured your robot using the sidebar configurer, they don't have to be "Motor1" and "Motor2".
 
 //Left Motors:
-motor_group(LeftFront, LeftBackA, LeftBackB),
+motor_group(LeftFront, LeftBack),
 
 //Right Motors:
-motor_group(RightFront, RightBackA, RightBackB),
+motor_group(RightFront, RightBack),
 
 //Specify the PORT NUMBER of your inertial sensor, in PORT format (i.e. "PORT1", not simply "1"):
-PORT16, // IMU port
+PORT17, // IMU port
 
 //Input your wheel diameter. (4" omnis are actually closer to 4.125"):
 3.25,
@@ -60,7 +60,7 @@ PORT16, // IMU port
 //If you are using ZERO_TRACKER_ODOM, you ONLY need to adjust the FORWARD TRACKER CENTER DISTANCE.
 
 //FOR HOLONOMIC DRIVES ONLY: Input your drive motors by position. This is only necessary for holonomic drives, otherwise this section can be left alone.
-//LF:      //RF:    
+//LF:      //RF:
 PORT2,     -PORT15,
 
 //LB:      //RB: 
@@ -69,24 +69,24 @@ PORT7,     -PORT21,
 //If you are using position tracking, this is the Forward Tracker port (the tracker which runs parallel to the direction of the chassis).
 //If this is a rotation sensor, enter it in "PORT1" format, inputting the port below.
 //If this is an encoder, enter the port as an integer. Triport A will be a "1", Triport B will be a "2", etc.
-PORT12, // vertical odom pod (rotational sensor port)
+PORT13, // vertical odom pod (rotational sensor port)
 
 //Input the Forward Tracker diameter (reverse it to make the direction switch):
-2.75, 
+2, 
 
 //Input Forward Tracker center distance (a positive distance corresponds to a tracker on the right side of the robot, negative is left.)
 //For a zero tracker tank drive with odom, put the positive distance from the center of the robot to the right side of the drive.
 //This distance is in inches:
--2,
+-8,
 
 //Input the Sideways Tracker Port, following the same steps as the Forward Tracker Port:
-PORT13, // horizontal odom pod (rotational sensor port)
+PORT12, // horizontal odom pod (rotational sensor port)
 
 //Sideways tracker diameter (reverse to make the direction switch):
--2.75,
+-2,
 
 //Sideways tracker center distance (positive distance is behind the center of the robot, negative is in front):
-5.5
+6.5
 
 );
 
@@ -115,19 +115,19 @@ void pre_auton() {
     Brain.Screen.printAt(5, 120, "Selected Auton:");
     switch(current_auton_selection){
       case 0:
-        Brain.Screen.printAt(5, 140, "Auton 1");
+        Brain.Screen.printAt(5, 140, "Left Side");
         break;
       case 1:
-        Brain.Screen.printAt(5, 140, "Auton 2");
+        Brain.Screen.printAt(5, 140, "Odom Test");
         break;
       case 2:
-        Brain.Screen.printAt(5, 140, "Auton 3");
+        Brain.Screen.printAt(5, 140, "Test Distance Alignment");
         break;
       case 3:
-        Brain.Screen.printAt(5, 140, "Auton 4");
+        Brain.Screen.printAt(5, 140, "Drive Test");
         break;
       case 4:
-        Brain.Screen.printAt(5, 140, "Auton 5");
+        Brain.Screen.printAt(5, 140, "Drive");
         break;
       case 5:
         Brain.Screen.printAt(5, 140, "Auton 6");
@@ -160,34 +160,131 @@ void autonomous(void) {
   auto_started = true;
   switch(current_auton_selection){ 
     case 0:
-      drive_test();
+      left_side_routine();
       break;
     case 1:         
-      drive_test();
+      odom_test();
       break;
     case 2:
-      turn_test();
+      test_dist_alignment();
       break;
     case 3:
-      swing_test();
+      drive_test();
       break;
     case 4:
-      full_test();
+      drive_test();
       break;
     case 5:
       odom_test();
       break;
     case 6:
-      tank_odom_test();
+      odom_test();
       break;
     case 7:
-      holonomic_odom_test();
+      odom_test();
       break;
  }
 }
 
 
+// ---------------- Field-oriented holonomic drive ----------------
+//
+// Converts joystick inputs (field frame) into robot-frame forward/strafe
+// using the current odom heading, then drives the X-drive manually.
+//
+// Assumptions:
+//  - Axis3 = forward/back on field (up/down stick).
+//  - Axis4 = strafe left/right on field (left/right stick).
+//  - Axis1 = rotation (turn).
+//  - chassis.odom.orientation_deg = robot heading in degrees, 0° = field "up".
+//
+
+// ---------------- Field-oriented holonomic drive (X-drive + JAR-Template) ----------------
+//
+// Goal:
+//   - Axis3 up  = always "forward" on the FIELD.
+//   - Axis3 down = always "backward" on the FIELD.
+//   - Axis4 right = always "right" on the FIELD.
+//   - Axis4 left  = always "left" on the FIELD.
+//   - Axis1 = rotate robot in place (still robot-centric).
+//
+// Requirements:
+//   - IMU/odom heading is 0° when the robot is pointed "upfield" at the start of driver.
+//   - Drive motors are: LeftFront, LeftBack, RightFront, RightBack, on an X-drive.
+//   - chassis.odom.orientation_deg is valid (JAR-template odom running).
+
+void field_oriented_drive() {
+  // 1) Read joystick as field-frame commands
+  double f = Controller.Axis3.position(percent) / 100.0; // field forward (+) / back (-)
+  double s = Controller.Axis4.position(percent) / 100.0; // field right (+) / left (-)
+  double t = Controller.Axis1.position(percent) / 100.0; // robot-centric turn
+
+  // 2) Deadband
+  const double DEADBAND = 0.05;
+  if (fabs(f) < DEADBAND) f = 0;
+  if (fabs(s) < DEADBAND) s = 0;
+  if (fabs(t) < DEADBAND) t = 0;
+
+  // If nothing commanded, stop drive and return
+  if (f == 0 && s == 0 && t == 0) {
+    LeftFront.stop(brakeType::coast);
+    LeftBack.stop(brakeType::coast);
+    RightFront.stop(brakeType::coast);
+    RightBack.stop(brakeType::coast);
+    return;
+  }
+
+  // 3) Get robot heading (field-relative)
+  // Make sure heading is zeroed at the start of driver control.
+  double heading_deg = chassis.odom.orientation_deg;
+  double h = heading_deg * M_PI / 180.0;  // radians
+
+  // 4) Convert field-frame (f, s) into ROBOT-frame (forward, strafe)
+  //
+  // Robot-forward  =  f * cos(h) + s * sin(h)
+  // Robot-strafe   = -f * sin(h) + s * cos(h)
+  //
+  // This makes "stick up" always push in the same field direction,
+  // regardless of robot orientation.
+  double robotFwd =  f * cos(h) + s * sin(h);
+  double robotStr = -f * sin(h) + s * cos(h);
+
+  // 5) X-drive mixing (robot frame)
+  double lf = robotFwd + robotStr + t;
+  double rf = robotFwd - robotStr - t;
+  double lb = robotFwd - robotStr + t;
+  double rb = robotFwd + robotStr - t;
+
+  // 6) Normalize so max magnitude is 1.0
+  double maxMag = fmax(fmax(fabs(lf), fabs(rf)), fmax(fabs(lb), fabs(rb)));
+  if (maxMag > 1.0) {
+    lf /= maxMag;
+    rf /= maxMag;
+    lb /= maxMag;
+    rb /= maxMag;
+  }
+
+  // 7) Scale to motor percent
+  const double MAX_PCT = 100.0;
+  lf *= MAX_PCT;
+  rf *= MAX_PCT;
+  lb *= MAX_PCT;
+  rb *= MAX_PCT;
+
+  // 8) Send to motors
+  LeftFront.spin(directionType::fwd, lf, velocityUnits::pct);
+  LeftBack.spin(directionType::fwd, lb, velocityUnits::pct);
+  RightFront.spin(directionType::fwd, rf, velocityUnits::pct);
+  RightBack.spin(directionType::fwd, rb, velocityUnits::pct);
+}
+
+
+
+
 void usercontrol(void) {
+
+  chassis.set_coordinates(chassis.odom.X_position, chassis.odom.Y_position, 0.0);
+
   while (1) {
     // --- Intake toggle (L1 and L2 control ALL intakes at once) ---
     static bool prevL1 = false, prevL2 = false;
@@ -224,10 +321,11 @@ void usercontrol(void) {
       stage1.stop(vex::brakeType::coast);
     }
 
-    // --- Pneumatics toggle (R1 and R2) ---
-    static bool prevR1 = false, prevR2 = false;
+    // --- Pneumatics toggle (R1, R2, X) ---
+    static bool prevR1 = false, prevR2 = false, prevX = false;
     bool currR1 = Controller.ButtonR1.pressing();
     bool currR2 = Controller.ButtonR2.pressing();
+    bool currX  = Controller.ButtonX.pressing();
 
     // Toggle Solenoid A (R1)
     if (currR1 && !prevR1) {
@@ -241,16 +339,27 @@ void usercontrol(void) {
     }
     prevR2 = currR2;
 
+    // Toggle Solenoid C (X)
+    if (currX && !prevX) {
+      solenoidCActive = !solenoidCActive;
+    }
+    prevX = currX;
+
     // Set pneumatic states
     solenoidA.set(solenoidAActive);
     solenoidB.set(solenoidBActive);
+    solenoidC.set(solenoidCActive);
 
-    // --- Chassis drive code (holonomic or your preferred method) ---
+    // --- Chassis drive code (holonomic) ---
     chassis.control_holonomic();
+
+    // --- Chassis drive code (holonomic field orientated) ---
+    //field_oriented_drive();
 
     wait(20, msec); // Prevent wasted resources
   }
 }
+
 
 
 //
