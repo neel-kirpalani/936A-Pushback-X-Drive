@@ -17,7 +17,8 @@ void holonomic_odom_test();
 void left_side_routine();
 void test_dist_alignment();
 void skills_auton();
-
+void left1();
+void right1();
 // distance sensor variables
 double getLeftWallDist();
 double getRightWallDist();

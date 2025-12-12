@@ -108,7 +108,7 @@ void align_and_reset_long_goal_right() {
 
 void default_constants(){
   // Each constant set is in the form of (maxVoltage, kP, kI, kD, startI).
-  chassis.set_drive_constants(12, 3.6, 0, 0.16, 0); // lateral PID constants
+  chassis.set_drive_constants(12, 5, 0.1, 36, 0); // lateral PID constants
 
   chassis.set_heading_constants(6, .4, 0, 1, 0);  // used for drive-to-point and heading maintaining
 
@@ -137,6 +137,7 @@ void odom_constants(){
   chassis.boomerang_lead = 0; // change back to default value of 0.5 if any issues occur
   chassis.drive_min_voltage = 0;
   chassis.drive_timeout = 3000;
+  chassis.turn_timeout = 1000;
 }
 
 /**
@@ -232,6 +233,48 @@ void holonomic_odom_test(){
   chassis.holonomic_drive_to_pose(18, 0, 180);
   chassis.holonomic_drive_to_pose(0, 18, 270);
   chassis.holonomic_drive_to_pose(0, 0, 0);
+}
+
+void right1(){
+  
+}
+
+void left1(){
+  chassis.set_coordinates(0,0,0);
+  chassis.drive_timeout = 1000;
+  chassis.holonomic_drive_to_pose(28.4, 1);
+  chassis.drive_distance(4);
+  solenoidC.set(true);
+  stage1.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  intakeMotor1.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  intakeMotor2.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  wait(1000, msec);
+  intakeMotor1.stop(coast);
+  intakeMotor2.stop(coast);
+  chassis.drive_distance(-15);
+  wait(25, msec);
+  chassis.turn_timeout = 700;
+  chassis.turn_to_angle(176.5);
+  wait(100, msec);
+  solenoidA.set(true);
+  stage1.stop(coast);
+  solenoidC.set(false);
+  chassis.drive_distance(17);
+  solenoidB.set(true);
+  intakeMotor1.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  intakeMotor2.spin(vex::directionType::rev, 100, vex::velocityUnits::pct);
+  wait(500, msec);
+  solenoidB.set(false);
+  chassis.drive_distance(-25);
+  solenoidA.set(false);
+  wait(25, msec);
+  chassis.turn_to_angle(225);
+  wait(100, msec);
+  chassis.drive_distance(40);
+  wait(50, msec);
+  solenoidB.set(true);
+  wait(1000, msec);
+
 }
 
 void left_side_routine(){

@@ -86,7 +86,7 @@ PORT12, // horizontal odom pod (rotational sensor port)
 -2,
 
 //Sideways tracker center distance (positive distance is behind the center of the robot, negative is in front):
-6.5
+4
 
 );
 
@@ -115,16 +115,16 @@ void pre_auton() {
     Brain.Screen.printAt(5, 120, "Selected Auton:");
     switch(current_auton_selection){
       case 0:
-        Brain.Screen.printAt(5, 140, "Left Side");
+        Brain.Screen.printAt(5, 140, "Left1");
         break;
       case 1:
         Brain.Screen.printAt(5, 140, "Odom Test");
         break;
       case 2:
-        Brain.Screen.printAt(5, 140, "Test Distance Alignment");
+        Brain.Screen.printAt(5, 140, "Right1");
         break;
       case 3:
-        Brain.Screen.printAt(5, 140, "Drive Test");
+        Brain.Screen.printAt(5, 140, "Test Distance Alignment");
         break;
       case 4:
         Brain.Screen.printAt(5, 140, "Drive");
@@ -160,16 +160,16 @@ void autonomous(void) {
   auto_started = true;
   switch(current_auton_selection){ 
     case 0:
-      left_side_routine();
+      left1();
       break;
     case 1:         
       odom_test();
       break;
     case 2:
-      test_dist_alignment();
+      right1();
       break;
     case 3:
-      drive_test();
+      test_dist_alignment();
       break;
     case 4:
       drive_test();
